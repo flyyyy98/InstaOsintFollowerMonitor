@@ -1,0 +1,87 @@
+name: Instagram Passive Follower Monitor
+
+# ==============================================================================
+# TRIGGERS: Cron cada 3 horas + Disparador Manual (Workflow Dispatch)
+# ==============================================================================
+on:
+  schedule:
+    # Se ejecuta cada 3 horas (00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 UTC)
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      target_override:
+        description: 'Cuenta objetivo opcional a monitorear (dejar en blanco para usar el Secret TARGET_ACCOUNT)'
+        required: false
+        default: ''
+
+# Control de concurrencia para evitar ejecuciones simultáneas y condiciones de carrera en Git
+concurrency:
+  group: instagram-monitor
+  cancel-in-progress: false
+
+# Permisos mínimos requeridos (Principio de Menor Privilegio)
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    name: Track New Instagram Followers
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # 1. Checkout del código con historial para git diff/commit
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Configuración del entorno Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # 3. Instalación de dependencias
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4. Ejecución del tracker OSINT con mapeo seguro de Secrets y Alertas
+      - name: Execute Instagram Tracker
+        env:
+          IG_USERNAME: ${{ secrets.IG_USERNAME }}
+          IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
+          TARGET_ACCOUNT: ${{ github.event.inputs.target_override || secrets.TARGET_ACCOUNT }}
+          IG_SESSION_BASE64: ${{ secrets.IG_SESSION_BASE64 }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+        run: |
+          python tracker.py
+
+      # 5. Persistencia y Auto-Commit de reportes actualizados
+      - name: Commit and Push Updated Follower Data
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Agregar los archivos JSON de datos y métricas de forma segura
+          for file in seguidores_historicos.json seguidos_historicos.json nuevos_seguidores.json perfil_historico.json historial_metricas.json historias_historicas.json timestamps_actividad.json; do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
+          
+          if git diff --staged --quiet; then
+            echo "✅ No se detectaron cambios en la base de datos de monitoreo. Repositorio al día."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            echo "🚀 Cambios detectados. Guardando nuevos reportes en el repositorio..."
+            git commit -m "chore(osint): update tracking and sentinel data [$TIMESTAMP] [skip ci]"
+            git push
+          fi

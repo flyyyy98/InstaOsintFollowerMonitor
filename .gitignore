@@ -1,0 +1,66 @@
+# ==============================================================================
+# REGLAS GITIGNORE - DEVSECOPS & PROTECCIÓN CONTRA FUGAS DE DATOS
+# ==============================================================================
+
+# Entornos y Secretos
+.env
+.env.local
+.env.*.local
+*.env
+
+# Archivos de sesión y cookies de Instaloader / Instagram (CRÍTICO: No commitear)
+session-*
+*.session
+.instaloader-*
+
+# Archivos de datos, reportes y snapshots generados
+*_historicos.json
+nuevos_seguidores.json
+perfil_historico.json
+historial_metricas.json
+timestamps_actividad.json
+
+
+# Entornos Virtuales de Python
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Caché y artefactos de compilación Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs y depuración
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Configuración de IDEs y Editores de código
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
